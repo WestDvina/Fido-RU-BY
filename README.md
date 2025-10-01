@@ -1,4 +1,4 @@
-# Fido-RU-BY
+# Fido-RU/BY
 Fido для Rufus, в котором не блокируются русские и белорусские IP при скачивании ISO
 # Fido-RU/BY
 
