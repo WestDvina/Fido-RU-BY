@@ -1,5 +1,5 @@
 ﻿#
-# Fido-RU/BY v1.67 - ISO Downloader, for Microsoft Windows and UEFI Shell
+# Fido-RU/BY v1.67.1 - ISO Downloader, for Microsoft Windows and UEFI Shell
 #
 # Original script: Copyright © 2019-2025 Pete Batard <pete@akeo.ie>
 # RU/BY adaptation and modifications: Copyright © 2025 WestDvina <westdvina.org@gmail>
@@ -137,15 +137,28 @@ $WindowsVersions = @(
 			@("Windows 10 Home China ", 2378)
 		)
 	),
+	# === [VDS] Windows 11 LTSC 2024 ===
 	@(
-		@("Windows 10 Enterprise Evaluation", "win10_ent_eval"),
+		@("Windows 11 Enterprise LTSC 2024", "win11_ltsc_2024_ru_vds"),
 		@(
-			"Enterprise 22H2",
-			@("Multi-language", 0)
-		),
+			"24H2 Build 26100.1742 (x64 ru-RU)",
+			@("Только x64 (Русский)", 0)
+		)
+	),
+	# === [VDS] Windows 10 LTSC 2021 x64 ===
+	@(
+		@("Windows 10 Enterprise LTSC 2021 x64", "win10_ltsc_2021_x64_ru_vds"),
 		@(
-			"LTSC 2021",
-			@("Multi-language", 0)
+			"21H2 Build 19044.1288 (x64 ru-RU)",
+			@("Только x64 (Русский)", 0)
+		)
+	),
+	# === [VDS] Windows 10 LTSC 2021 x86 ===
+	@(
+		@("Windows 10 Enterprise LTSC 2021 x86", "win10_ltsc_2021_x86_ru_vds"),
+		@(
+			"21H2 Build 19044.1288 (x86 ru-RU)",
+			@("Только x86 (Русский)", 0)
 		)
 	),
 	@(
@@ -425,56 +438,6 @@ function Error([string]$ErrorMessage)
 	}
 }
 
-# ========================= ИЗМЕНЕНИЕ №2 =========================
-# Полностью переписана функция для работы с новой структурой HTML
-function Get-Win10-Enterprise-Links([string]$Release, [string]$Language)
-{
-	$links = @()
-	$evalUrl = "https://www.microsoft.com/ru-ru/evalcenter/download-windows-10-enterprise"
-	try {
-		$response = Invoke-WebRequest -UseBasicParsing -TimeoutSec $DefaultTimeout -Uri $evalUrl
-		$content = [System.Text.Encoding]::UTF8.GetString($response.RawContentStream.ToArray())
-		$content = $content -replace "`n" -replace "`r"
-
-		$languageDisplay = $LanguageMapping[$Language]
-		if (-not $languageDisplay) {
-			throw "Язык '$Language' не поддерживается для Windows 10 Enterprise Evaluation (нет в LanguageMapping)."
-		}
-
-		$editionText = if ($Release -like "*Enterprise*") { "корпоративной версии" } else { "корпоративной LTSC-версии" }
-
-		# Новое регулярное выражение:
-		# 1. Ищет заголовок <th> с названием языка.
-		# 2. Затем ищет текст с названием редакции (Enterprise или LTSC).
-		# 3. После этого захватывает две ссылки: для 32-битной и 64-битной версий.
-		# 4. '(?s)' - это флаг, который позволяет точке '.' соответствовать символам новой строки.
-		$pattern = "(?s)<th[^>]*>\s*$([regex]::Escape($languageDisplay))\s*</th>.*?<strong>ISO — файлы для скачивания $editionText</strong>.*?<a[^>]*data-bi-ecn=`"32-разрядный выпуск`"[^>]*?href=`"([^`"]*)`".*?<a[^>]*data-bi-ecn=`"64-разрядный выпуск`"[^>]*?href=`"([^`"]*)`""
-		
-		$match = [regex]::Match($content, $pattern)
-
-		if (-not $match.Success) {
-			throw "Не удалось найти ссылки для '$languageDisplay' ($editionText). Возможно, структура страницы Microsoft снова изменилась."
-		}
-
-		# Группа 1 содержит ссылку на 32-битную версию, Группа 2 - на 64-битную.
-		$link32 = $match.Groups[1].Value
-		$link64 = $match.Groups[2].Value
-
-		if ($Verbosity -ge 2) {
-			Write-Host "Найдены ссылки: 32-bit: $link32, 64-bit: $link64 для $languageDisplay ($editionText)"
-		}
-
-		$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link32 })
-		$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link64 })
-
-	} catch {
-		Error($_.Exception.Message)
-		return @()
-	}
-	return $links
-}
-#endregion
-
 #region Form
 [xml]$XAML = @"
 <Window xmlns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation" Height = "162" Width = "384" ResizeMode = "NoResize">
@@ -620,10 +583,9 @@ function Get-Windows-Languages([int]$SelectedVersion, [object]$SelectedEdition)
 	$langs = @()
 	if ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
 		$langs += @(New-Object PsObject -Property @{ DisplayName = "English (US)"; Name = "en-us"; Data = @($null) })
-	} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("win10_ent_eval")) {
-		foreach ($lang in $LanguageMapping.Keys) {
-			$langs += @(New-Object PsObject -Property @{ DisplayName = $LanguageMapping[$lang]; Name = $lang; Data = @(@{SkuId = "eval"}) })
-		}
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -match "_ru_vds$") { # Обработка наших жестких ссылок
+		# Для жестких ссылок VDS всегда возвращаем только русский язык
+		$langs += @(New-Object PsObject -Property @{ DisplayName = "Русский (Россия)"; Name = "ru-ru"; Data = @(@{SkuId = "vds"}) })
 	} else {
 		$languages = [ordered]@{}
 		$SessionIndex = 0
@@ -681,6 +643,7 @@ function Get-Windows-Languages([int]$SelectedVersion, [object]$SelectedEdition)
 					if (!$BypassGeo) {
 						$dataEntry.SessionIndex = $SessionIndex
 					} else {
+						# Убедиться, что ProductId всегда передается для Gravesoft
 						$dataEntry.ProductId = $EditionId
 					}
 					$languages[$LanguageKey].Data += $dataEntry
@@ -738,9 +701,18 @@ function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease
 			Error($_.Exception.Message)
 			return @()
 		}
-	} elseif ($WindowsVersions[$SelectedVersion][0][1].StartsWith("win10_ent_eval")) {
-		$release = $WindowsVersions[$SelectedVersion][$SelectedRelease][0]
-		$links = Get-Win10-Enterprise-Links $release $SelectedLanguage.Name
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win11_ltsc_2024_ru_vds") {
+		# Win 11 LTSC x64 24H2 b.26100.1742
+		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_11_enterprise_ltsc_2024_x64_dvd_f9af5773.iso"
+		$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win10_ltsc_2021_x64_ru_vds") {
+		# Win 10 LTSC 2021 21H2 b.19044.1288 x64
+		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x64_dvd_5044a1e7.iso"
+		$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win10_ltsc_2021_x86_ru_vds") {
+		# Win 10 LTSC 2021 21H2 b.19044.1288 x86
+		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x86_dvd_cdf355eb.iso"
+		$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link })
 	} else {
 		foreach ($Entry in $SelectedLanguage.Data) {
 			if (!$BypassGeo) {
@@ -756,6 +728,10 @@ function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease
 				}
 				$ref = "https://www.microsoft.com/software-download/windows11"
 			} else {
+				# Для Gravesoft API ProductId и SkuId должны быть определены
+				if (-not $Entry.ProductId -or -not $Entry.SkuId) {
+					throw "Ошибка: Не удалось получить ProductId или SkuId для запроса Gravesoft API."
+				}
 				$url = "https://api.gravesoft.dev/msdl/proxy?product_id=" + $Entry.ProductId + "&sku_id=" + $Entry.SkuId
 				if ($Verbosity -ge 2) {
 					Write-Host "Запрашивается $url (через прокси Gravesoft)"
@@ -765,7 +741,7 @@ function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease
 				if (!$BypassGeo) {
 					$r = Invoke-RestMethod -Headers @{ "Referer" = $ref } -UseBasicParsing -TimeoutSec $DefaultTimeout -SessionVariable "Session" $url
 				} else {
-					$r = Invoke-RestMethod -UseBasicParsing -TimeoutSec $DefaultTimeout $url
+					$r = Invoke-RestMethod -UseBasicParsing -TimeoutSec $DefaultTimeout -SessionVariable "Session" $url # <<< ИЗМЕНЕНИЕ ЗДЕСЬ
 				}
 				if ($r -eq $null) {
 					throw "Не удалось получить архитектуры с сервера"
