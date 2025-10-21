@@ -137,28 +137,40 @@ $WindowsVersions = @(
 			@("Windows 10 Home China ", 2378)
 		)
 	),
-	# === [VDS] Windows 11 LTSC 2024 ===
+	# === [VDS] Windows 11 Enterprise LTSC 2024 ===
 	@(
-		@("Windows 11 Enterprise LTSC 2024", "win11_ltsc_2024_ru_vds"),
+		@("Windows 11 Enterprise LTSC 2024 (VDS)", "win11_ltsc_2024_ru_vds"),
 		@(
-			"24H2 Build 26100.1742 (x64 ru-RU)",
-			@("Только x64 (Русский)", 0)
+			"24H2 Build 26100.1742",
+			@("LTSC x64 (Русский)", 0) # Используем Edition как заглушку для Архитектуры
 		)
 	),
-	# === [VDS] Windows 10 LTSC 2021 x64 ===
+	# === [VDS] Windows 10 LTSC/LTSB (ВСЕ ВЕРСИИ) ===
 	@(
-		@("Windows 10 Enterprise LTSC 2021 x64", "win10_ltsc_2021_x64_ru_vds"),
+		@("Windows 10 LTSC/LTSB (VDS)", "win10_ltsc_ltsb_vds"),
 		@(
-			"21H2 Build 19044.1288 (x64 ru-RU)",
-			@("Только x64 (Русский)", 0)
-		)
-	),
-	# === [VDS] Windows 10 LTSC 2021 x86 ===
-	@(
-		@("Windows 10 Enterprise LTSC 2021 x86", "win10_ltsc_2021_x86_ru_vds"),
+			"LTSC 2021 (21H2) x64",
+			@("LTSC x64 (Русский)", 0)
+		),
 		@(
-			"21H2 Build 19044.1288 (x86 ru-RU)",
-			@("Только x86 (Русский)", 0)
+			"LTSC 2021 (21H2) x86",
+			@("LTSC x86 (Русский)", 1)
+		),
+		@(
+			"LTSC 2019 (1809) x64",
+			@("LTSC x64 (Русский)", 2)
+		),
+		@(
+			"LTSC 2019 (1809) x86",
+			@("LTSC x86 (Русский)", 3)
+		),
+		@(
+			"LTSB 2016 (1607) x64",
+			@("LTSB x64 (Русский)", 4)
+		),
+		@(
+			"LTSB 2016 (1607) x86",
+			@("LTSB x86 (Русский)", 5)
 		)
 	),
 	@(
@@ -583,7 +595,7 @@ function Get-Windows-Languages([int]$SelectedVersion, [object]$SelectedEdition)
 	$langs = @()
 	if ($WindowsVersions[$SelectedVersion][0][1].StartsWith("UEFI_SHELL")) {
 		$langs += @(New-Object PsObject -Property @{ DisplayName = "English (US)"; Name = "en-us"; Data = @($null) })
-	} elseif ($WindowsVersions[$SelectedVersion][0][1] -match "_ru_vds$") { # Обработка наших жестких ссылок
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -match "_vds$") { # Обработка всех жестких ссылок (W11 LTSC и W10 LTSC/LTSB)
 		# Для жестких ссылок VDS всегда возвращаем только русский язык
 		$langs += @(New-Object PsObject -Property @{ DisplayName = "Русский (Россия)"; Name = "ru-ru"; Data = @(@{SkuId = "vds"}) })
 	} else {
@@ -702,17 +714,32 @@ function Get-Windows-Download-Links([int]$SelectedVersion, [int]$SelectedRelease
 			return @()
 		}
 	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win11_ltsc_2024_ru_vds") {
-		# Win 11 LTSC x64 24H2 b.26100.1742
+		# Win 11 LTSC x64 24H2 (жесткая ссылка)
 		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_11_enterprise_ltsc_2024_x64_dvd_f9af5773.iso"
 		$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
-	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win10_ltsc_2021_x64_ru_vds") {
-		# Win 10 LTSC 2021 21H2 b.19044.1288 x64
-		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x64_dvd_5044a1e7.iso"
-		$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
-	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win10_ltsc_2021_x86_ru_vds") {
-		# Win 10 LTSC 2021 21H2 b.19044.1288 x86
-		$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x86_dvd_cdf355eb.iso"
-		$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link })
+	} elseif ($WindowsVersions[$SelectedVersion][0][1] -eq "win10_ltsc_ltsb_vds") {
+		$release_name = $WindowsVersions[$SelectedVersion][$SelectedRelease][0]
+		
+		# Логика для Windows 10 LTSC/LTSB (по имени Релиза)
+		if ($release_name -eq "LTSC 2021 (21H2) x64") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x64_dvd_5044a1e7.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
+		} elseif ($release_name -eq "LTSC 2021 (21H2) x86") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru-ru_windows_10_enterprise_ltsc_2021_x86_dvd_cdf355eb.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link })
+		} elseif ($release_name -eq "LTSC 2019 (1809) x64") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru_windows_10_enterprise_ltsc_2019_x64_dvd_78e7853a.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
+		} elseif ($release_name -eq "LTSC 2019 (1809) x86") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru_windows_10_enterprise_ltsc_2019_x86_dvd_196b5dad.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link })
+		} elseif ($release_name -eq "LTSB 2016 (1607) x64") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru_windows_10_enterprise_2016_ltsb_x64_dvd_9057886.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x64"; Url = $link })
+		} elseif ($release_name -eq "LTSB 2016 (1607) x86") {
+			$link = "https://s3.twcstorage.ru/35761667-winiso/win/ru_windows_10_enterprise_2016_ltsb_x86_dvd_9058173.iso"
+			$links += @(New-Object PsObject -Property @{ Arch = "x86"; Url = $link })
+		}
 	} else {
 		foreach ($Entry in $SelectedLanguage.Data) {
 			if (!$BypassGeo) {
